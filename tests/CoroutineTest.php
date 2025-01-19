@@ -4,7 +4,7 @@ namespace tests;
 
 use PHPUnit\Framework\TestCase;
 use Workerman\Coroutine\Coroutine as Coroutine;
-use Workerman\Coroutine\CoroutineInterface;
+use Workerman\Coroutine\Coroutine\CoroutineInterface;
 use Workerman\Events\Swoole;
 use Workerman\Worker;
 

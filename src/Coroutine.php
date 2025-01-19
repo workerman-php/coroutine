@@ -16,11 +16,11 @@ declare(strict_types=1);
 
 namespace Workerman\Coroutine;
 
-use Workerman\Coroutine\CoroutineInterface;
-use Workerman\Coroutine\Fiber;
+use Workerman\Coroutine\Coroutine\CoroutineInterface;
+use Workerman\Coroutine\Coroutine\Fiber;
 use Workerman\Worker;
-use Workerman\Coroutine\Swoole as SwooleCoroutine;
-use Workerman\Coroutine\Swow as SwowCoroutine;
+use Workerman\Coroutine\Coroutine\Swoole as SwooleCoroutine;
+use Workerman\Coroutine\Coroutine\Swow as SwowCoroutine;
 use Workerman\Events\Swoole as SwooleEvent;
 use Workerman\Events\Swow as SwowEvent;
 

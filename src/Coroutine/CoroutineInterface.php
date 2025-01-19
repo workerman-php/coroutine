@@ -14,7 +14,7 @@
 
 declare(strict_types=1);
 
-namespace Workerman\Coroutine;
+namespace Workerman\Coroutine\Coroutine;
 
 use Fiber;
 use Swow\Coroutine as SwowCoroutine;

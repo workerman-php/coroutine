@@ -282,5 +282,21 @@ class ParallelTest extends TestCase
         $this->assertNull($results['nullTask']);
     }
 
+    /**
+     * Test defer can be used in tasks.
+     */
+    public function testWithDefer()
+    {
+        $parallel = new Parallel();
+        $results = [];
+        $parallel->add(function () use (&$results) {
+            Coroutine::defer(function () use (&$results) {
+                $results[] = 'defer1';
+            });
+        });
+        $parallel->wait();
+        $this->assertEquals(['defer1'], $results);
+    }
+
 }
 

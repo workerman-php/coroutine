@@ -34,13 +34,11 @@ class Fiber implements BarrierInterface
      */
     public static function wait(object &$barrier, int $timeout = -1): void
     {
-        if (!$coroutine = BaseFiber::getCurrent()) {
-            throw new RuntimeException('Barrier only supports running in a coroutine environment.');
-        }
+        $coroutine = BaseFiber::getCurrent();
         $resumed = false;
         $timerId = null;
 
-        if ($timeout > 0) {
+        if ($timeout > 0 && $coroutine) {
             $timerId = Timer::delay($timeout, function() use ($coroutine, &$resumed) {
                 if (!$resumed) {
                     $resumed = true;
@@ -49,7 +47,7 @@ class Fiber implements BarrierInterface
             });
         }
 
-        DestructionWatcher::watch($barrier, function() use ($coroutine, &$resumed, &$timerId) {
+        $coroutine && DestructionWatcher::watch($barrier, function() use ($coroutine, &$resumed, &$timerId) {
             if (!$resumed) {
                 $resumed = true;
                 if ($timerId !== null) {
@@ -58,7 +56,7 @@ class Fiber implements BarrierInterface
                 // In PHP 8.4.0 and earlier,
                 // switching fibers during the execution of an object's destructor method is not allowed,
                 // so we implemented a delay.
-                if (Worker::$eventLoopClass !== \Workerman\Events\Fiber::class) {
+                if ($coroutine instanceof BaseFiber) {
                     Timer::delay(0.00001, function() use ($coroutine) {
                         $coroutine->resume();
                     });
@@ -70,7 +68,7 @@ class Fiber implements BarrierInterface
             }
         });
         $barrier = null;
-        BaseFiber::suspend();
+        $coroutine && BaseFiber::suspend();
     }
 
     /**

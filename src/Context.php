@@ -60,7 +60,7 @@ class Context implements ContextInterface
     /**
      * @inheritDoc
      */
-    public static function init(array $data): void
+    public static function init(array $data = []): void
     {
         static::$driver::init($data);
     }

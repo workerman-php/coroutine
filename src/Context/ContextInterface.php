@@ -38,7 +38,7 @@ interface ContextInterface
      *
      * @param array $data The array of data to initialize the context.
      */
-    public static function init(array $data): void;
+    public static function init(array $data = []): void;
 
     /**
      * Destroy the context.

@@ -49,6 +49,13 @@ class Fiber implements CoroutineInterface
         static $id = 0;
         $this->id = ++$id;
         if ($callable) {
+            $callable = function(...$args) use ($callable) {
+                try {
+                    $callable(...$args);
+                } finally {
+                    $this->fiber = null;
+                }
+            };
             $this->fiber = new BaseFiber($callable);
             self::$instances[$this->fiber] = $this;
         }

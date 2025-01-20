@@ -34,7 +34,9 @@ class Fiber implements BarrierInterface
      */
     public static function wait(object &$barrier, int $timeout = -1): void
     {
-        $coroutine = BaseFiber::getCurrent();
+        if (!$coroutine = BaseFiber::getCurrent()) {
+            throw new RuntimeException('Barrier only supports running in a coroutine environment.');
+        }
         $resumed = false;
         $timerId = null;
 

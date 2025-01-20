@@ -81,8 +81,7 @@ class Context implements ContextInterface
         static::$driver ??= match (Worker::$eventLoopClass) {
             Swoole::class => Context\Swoole::class,
             Swow::class => Context\Swow::class,
-            Fiber::class => Context\Fiber::class,
-            default=> Context\Memory::class,
+            default=> Context\Fiber::class,
         };
     }
 

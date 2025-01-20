@@ -2,10 +2,12 @@
 
 namespace Workerman\Coroutine\Context;
 
-
 use WeakMap;
 use Fiber as BaseFiber;
 
+/**
+ * Class Fiber
+ */
 class Fiber implements ContextInterface
 {
     /**
@@ -14,11 +16,19 @@ class Fiber implements ContextInterface
     private static WeakMap $contexts;
 
     /**
+     * @var array
+     */
+    private static array $nonFiberContext = [];
+
+    /**
      * @inheritDoc
      */
     public static function get(string $name, mixed $default = null): mixed
     {
-        return static::$contexts[BaseFiber::getCurrent()][$name] ?? $default;
+        if (($fiber = BaseFiber::getCurrent()) === null) {
+            return static::$nonFiberContext[$name] ?? $default;
+        }
+        return static::$contexts[$fiber][$name] ?? $default;
     }
 
     /**
@@ -26,8 +36,13 @@ class Fiber implements ContextInterface
      */
     public static function set(string $name, $value): void
     {
-        static::$contexts[BaseFiber::getCurrent()] ??= [];
-        static::$contexts[BaseFiber::getCurrent()][$name] = $value;
+        $fiber = BaseFiber::getCurrent();
+        if ($fiber === null) {
+            static::$nonFiberContext[$name] = $value;
+            return;
+        }
+        static::$contexts[$fiber] ??= [];
+        static::$contexts[$fiber][$name] = $value;
     }
 
     /**
@@ -35,7 +50,11 @@ class Fiber implements ContextInterface
      */
     public static function has(string $name): bool
     {
-        $context = static::$contexts[BaseFiber::getCurrent()] ?? [];
+        $fiber = BaseFiber::getCurrent();
+        if ($fiber === null) {
+            return key_exists($name, static::$nonFiberContext);
+        }
+        $context = static::$contexts[$fiber] ?? [];
         return key_exists($name, $context);
     }
 
@@ -44,7 +63,12 @@ class Fiber implements ContextInterface
      */
     public static function init(array $data = []): void
     {
-        static::$contexts[BaseFiber::getCurrent()] = $data;
+        $fiber = BaseFiber::getCurrent();
+        if ($fiber === null) {
+            static::$nonFiberContext = $data;
+            return;
+        }
+        static::$contexts[$fiber] = $data;
     }
 
     /**
@@ -52,11 +76,16 @@ class Fiber implements ContextInterface
      */
     public static function destroy(): void
     {
-        unset(static::$contexts[BaseFiber::getCurrent()]);
+        $fiber = BaseFiber::getCurrent();
+        if ($fiber === null) {
+            static::$nonFiberContext = [];
+            return;
+        }
+        unset(static::$contexts[$fiber]);
     }
 
     /**
-     * @inheritDoc
+     * Initialize the weakMap.
      */
     public static function initWeakMap(): void
     {

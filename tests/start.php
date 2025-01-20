@@ -18,6 +18,7 @@ $worker->onWorkerStart = function () {
         __DIR__ . '/ChannelTest.php',
         __DIR__ . '/PoolTest.php',
         __DIR__ . '/BarrierTest.php',
+        __DIR__ . '/ContextTest.php',
     ]);
 };
 
@@ -30,9 +31,11 @@ if (extension_loaded('event')) {
             __DIR__ . '/ChannelTest.php',
             __DIR__ . '/PoolTest.php',
             __DIR__ . '/BarrierTest.php',
+            __DIR__ . '/ContextTest.php',
         ]);
     };
 }
+
 
 if (class_exists(Revolt\EventLoop::class)) {
     $worker = new Worker();
@@ -44,6 +47,7 @@ if (class_exists(Revolt\EventLoop::class)) {
         ]);
     };
 }
+
 
 if (extension_loaded('Swoole')) {
     $worker = new Worker();
@@ -58,6 +62,7 @@ if (extension_loaded('Swoole')) {
         });
     };
 }
+
 
 if (extension_loaded('Swow')) {
     $worker = new Worker();

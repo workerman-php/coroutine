@@ -5,7 +5,7 @@
   "description": "Workerman coroutine",
   "require": {
     "php": ">=8.1",
-    "workerman/workerman": "5.1.0 || dev-master"
+    "workerman/workerman": "^5.1 || dev-master"
   },
   "autoload": {
     "psr-4": {

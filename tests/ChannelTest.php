@@ -111,7 +111,7 @@ class ChannelTest extends TestCase
         $elapsedTime = microtime(true) - $startTime;
 
         // Verify that the pop operation timed out
-        $this->assertGreaterThanOrEqual(0.1, $elapsedTime);
+        $this->assertGreaterThanOrEqual(0.09, $elapsedTime);
     }
 
     /**

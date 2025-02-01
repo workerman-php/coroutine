@@ -214,7 +214,7 @@ class Fiber implements ChannelInterface
      */
     public function hasConsumers(): bool
     {
-        return (bool)count($this->waitingPop);
+        return count($this->waitingPop) > 0;
     }
 
     /**
@@ -222,7 +222,7 @@ class Fiber implements ChannelInterface
      */
     public function hasProducers(): bool
     {
-        return (bool)count($this->waitingPush);
+        return count($this->waitingPush) > 0;
     }
 
     /**

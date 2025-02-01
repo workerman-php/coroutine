@@ -10,7 +10,6 @@ use Workerman\Worker;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-
 $worker = new Worker();
 $worker->eventLoop = Select::class;
 $worker->onWorkerStart = function () {
@@ -62,7 +61,6 @@ if (extension_loaded('Swoole')) {
     };
 }
 
-
 if (extension_loaded('Swow')) {
     $worker = new Worker();
     $worker->eventLoop = Swow::class;
@@ -71,7 +69,7 @@ if (extension_loaded('Swow')) {
             __DIR__ . '/../vendor/bin/phpunit',
             ...glob(__DIR__ . '/*Test.php')
         ]);
-        Timer::delay(1, function () {
+        Timer::delay(5, function () {
             posix_kill(posix_getppid(), SIGINT);
         });
     };

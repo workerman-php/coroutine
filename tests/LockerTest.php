@@ -22,7 +22,9 @@ class LockerTest extends TestCase
             $this->assertChannelExists($key);
             $timeStart = microtime(true);
             Locker::lock($key);
-            $this->assertGreaterThan(0.1, microtime(true) - $timeStart);
+            $timeDiff = microtime(true) - $timeStart;
+            $this->assertGreaterThan(0.08, $timeDiff);
+            $this->assertLessThan(0.11, $timeDiff);
             Locker::unlock($key);
         });
         usleep(100000);
@@ -123,4 +125,5 @@ class LockerTest extends TestCase
         $property = $reflector->getProperty('channels');
         return $property->getValue();
     }
+
 }

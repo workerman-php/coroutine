@@ -51,8 +51,10 @@ class Locker
     public static function unlock(string $key): bool
     {
         if ($channel = static::$channels[$key] ?? null) {
+            // Must check hasProducers before pop, because pop in swow will wake up the producer, leading to inaccurate judgment.
+            $hasProducers = $channel->hasProducers();
             $result = $channel->pop();
-            if (!$channel->hasProducers()) {
+            if (!$hasProducers) {
                 $channel->close();
                 unset(static::$channels[$key]);
             }

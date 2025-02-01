@@ -46,6 +46,22 @@ class Memory implements ChannelInterface
         return $this->capacity;
     }
 
+    /**
+     * @inheritDoc
+     */
+    public function hasConsumers(): bool
+    {
+        return false;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function hasProducers(): bool
+    {
+        return false;
+    }
+
     public function close(): void
     {
         $this->closed = true;

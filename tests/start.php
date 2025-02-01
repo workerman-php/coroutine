@@ -10,6 +10,7 @@ use Workerman\Worker;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+
 $worker = new Worker();
 $worker->eventLoop = Select::class;
 $worker->onWorkerStart = function () {
@@ -36,7 +37,6 @@ if (extension_loaded('event')) {
     };
 }
 
-
 if (class_exists(Revolt\EventLoop::class)) {
     $worker = new Worker();
     $worker->eventLoop = Fiber::class;
@@ -47,7 +47,6 @@ if (class_exists(Revolt\EventLoop::class)) {
         ]);
     };
 }
-
 
 if (extension_loaded('Swoole')) {
     $worker = new Worker();

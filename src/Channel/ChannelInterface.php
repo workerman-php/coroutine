@@ -53,6 +53,20 @@ interface ChannelInterface
     public function getCapacity(): int;
 
     /**
+     * Check if there are consumers waiting to pop data from the channel.
+     *
+     * @return bool
+     */
+    public function hasConsumers(): bool;
+
+    /**
+     * Check if there are producers waiting to push data to the channel.
+     *
+     * @return bool
+     */
+    public function hasProducers(): bool;
+
+    /**
      * Close the channel.
      *
      * @return void

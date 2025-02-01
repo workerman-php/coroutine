@@ -91,6 +91,22 @@ class Channel implements ChannelInterface
     /**
      * @inheritDoc
      */
+    public function hasConsumers(): bool
+    {
+        return $this->driver->hasConsumers();
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function hasProducers(): bool
+    {
+        return $this->driver->hasProducers();
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function close(): void
     {
         $this->driver->close();

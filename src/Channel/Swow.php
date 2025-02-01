@@ -84,6 +84,22 @@ class Swow implements ChannelInterface
     /**
      * @inheritDoc
      */
+    public function hasConsumers(): bool
+    {
+        return $this->channel->hasConsumers();
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function hasProducers(): bool
+    {
+        return $this->channel->hasProducers();
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function close(): void
     {
         $this->channel->close();

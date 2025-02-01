@@ -196,6 +196,38 @@ class Fiber implements ChannelInterface
     /**
      * @inheritDoc
      */
+    public function length(): int
+    {
+        return count($this->queue);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getCapacity(): int
+    {
+        return $this->capacity;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function hasConsumers(): bool
+    {
+        return (bool)count($this->waitingPop);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function hasProducers(): bool
+    {
+        return (bool)count($this->waitingPush);
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function close(): void
     {
         $this->closed = true;
@@ -215,22 +247,6 @@ class Fiber implements ChannelInterface
             }
         }
         $this->waitingPop = new WeakMap();
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function length(): int
-    {
-        return count($this->queue);
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function getCapacity(): int
-    {
-        return $this->capacity;
     }
 
 }

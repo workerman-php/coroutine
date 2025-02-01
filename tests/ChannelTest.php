@@ -5,10 +5,13 @@ namespace tests;
 
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use ReflectionException;
+use stdClass;
 use Workerman\Coroutine\Channel;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Workerman\Coroutine\Channel\Memory;
+use Workerman\Coroutine\Coroutine;
 
 class ChannelTest extends TestCase
 {
@@ -184,7 +187,7 @@ class ChannelTest extends TestCase
             [null],
             [[]],
             [['key' => 'value']],
-            [new \stdClass()],
+            [new stdClass()],
             [fopen('php://memory', 'r')],
         ];
     }
@@ -215,10 +218,96 @@ class ChannelTest extends TestCase
      */
     protected function driverIsMemory(): bool
     {
-        $reflectionClass = new \ReflectionClass(Channel::class);
+        $reflectionClass = new ReflectionClass(Channel::class);
         $instance = $reflectionClass->newInstance();
         $property = $reflectionClass->getProperty('driver');
         $driverValue = $property->getValue($instance);
         return $driverValue instanceof Memory;
     }
+
+    /**
+     * 测试 hasConsumers 当没有消费者时返回 false
+     */
+    public function testHasConsumersWhenNoConsumers()
+    {
+        if (!Coroutine::isCoroutine()) {
+            $this->assertTrue(true);
+            return;
+        }
+        $channel = new Channel(1);
+        $this->assertFalse($channel->hasConsumers());
+        $channel->close();
+    }
+
+    /**
+     * 测试 hasConsumers 当有消费者等待时返回 true
+     * @throws ReflectionException
+     */
+    public function testHasConsumersWhenConsumersWaiting()
+    {
+        if ($this->driverIsMemory()) {
+            $this->assertTrue(true);
+            return;
+        }
+        $channel = new Channel(1);
+        $sync = new Channel(1);
+
+        Coroutine::create(function () use ($channel, $sync) {
+            $sync->push(true);
+            $channel->pop();
+        });
+
+        $sync->pop();
+
+        $this->assertTrue($channel->hasConsumers());
+
+        Coroutine::create(function () use ($channel) {
+            $channel->push('data');
+        });
+        $channel->close();
+    }
+
+    /**
+     * 测试 hasProducers 当没有生产者时返回 false
+     * @throws ReflectionException
+     */
+    public function testHasProducersWhenNoProducers()
+    {
+        if ($this->driverIsMemory()) {
+            $this->assertTrue(true);
+            return;
+        }
+        $channel = new Channel(1);
+        $this->assertFalse($channel->hasProducers());
+        $channel->close();
+    }
+
+    /**
+     * 测试 hasProducers 当有生产者等待时返回 true
+     * @throws ReflectionException
+     */
+    public function testHasProducersWhenProducersWaiting()
+    {
+        if ($this->driverIsMemory()) {
+            $this->assertTrue(true);
+            return;
+        }
+        $channel = new Channel(1);
+        $channel->push('data1');
+
+        $sync = new Channel(1);
+
+        Coroutine::create(function () use ($channel, $sync) {
+            $sync->push(true);
+            $channel->push('data2');
+        });
+
+        $sync->pop();
+
+        $this->assertTrue($channel->hasProducers());
+
+        $channel->pop();
+        $channel->close();
+    }
+
 }

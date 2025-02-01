@@ -74,6 +74,22 @@ class Swoole implements ChannelInterface
     /**
      * @inheritDoc
      */
+    public function hasConsumers(): bool
+    {
+        return $this->channel->stats()['consumer_num'] > 0;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function hasProducers(): bool
+    {
+        return $this->channel->stats()['producer_num'] > 0;
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function close(): void
     {
         $this->channel->close();

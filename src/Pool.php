@@ -38,11 +38,6 @@ class Pool implements PoolInterface
     /**
      * @var int
      */
-    protected int $currentConnections = 0;
-
-    /**
-     * @var int
-     */
     protected int $minConnections = 1;
 
     /**
@@ -168,7 +163,7 @@ class Pool implements PoolInterface
     public function get(): object
     {
         $num = $this->channel->length();
-        if ($num === 0 && $this->currentConnections < $this->maxConnections) {
+        if ($num === 0 && count($this->lastUsedTimes) < $this->maxConnections) {
             $this->createConnection();
         }
         $connection = $this->channel->pop($this->waitTimeout);
@@ -222,7 +217,7 @@ class Pool implements PoolInterface
     protected function checkValidateConnection($connection): void
     {
         if (!$this->isValidConnection($connection)) {
-            throw new RuntimeException('The connection is invalid. Expected a valid connection object, but received a ' . gettype($connection) . '.');
+            throw new RuntimeException('The connection is invalid. Expected object, but received a ' . gettype($connection) . '.');
         }
     }
 
@@ -234,19 +229,10 @@ class Pool implements PoolInterface
      */
     public function createConnection(): object
     {
-        try {
-            ++$this->currentConnections;
-            $connection = ($this->connectionCreateHandler)();
-            $this->checkValidateConnection($connection);
-            $this->channel->push($connection);
-            $this->lastUsedTimes[$connection] = $this->lastHeartbeatTimes[$connection] = time();
-        } catch (Throwable $throwable) {
-            --$this->currentConnections;
-            throw $throwable;
-        }
-        DestructionWatcher::watch($connection, function () use ($connection) {
-            $this->closeConnection($connection);
-        });
+        $connection = ($this->connectionCreateHandler)();
+        $this->checkValidateConnection($connection);
+        $this->channel->push($connection);
+        $this->lastUsedTimes[$connection] = $this->lastHeartbeatTimes[$connection] = time();
         return $connection;
     }
 
@@ -261,19 +247,12 @@ class Pool implements PoolInterface
         if (!isset($this->lastUsedTimes[$connection])) {
             return;
         }
-        --$this->currentConnections;
         // Mark this connection as no longer belonging to the connection pool.
         unset($this->lastUsedTimes[$connection]);
+        if (!$this->connectionDestroyHandler) {
+            return;
+        }
         try {
-            if (!$this->connectionDestroyHandler) {
-                foreach (['close', 'disconnect', 'release', 'destroy', 'free'] as $method) {
-                    if (method_exists($connection, $method)) {
-                        $connection->$method();
-                        return;
-                    }
-                }
-                return;
-            }
             ($this->connectionDestroyHandler)($connection);
         } catch (Throwable $throwable) {
             $this->log($throwable);

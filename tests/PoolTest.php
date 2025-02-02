@@ -3,6 +3,7 @@
 namespace test;
 
 use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
 use Workerman\Coroutine\Pool;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;
@@ -63,7 +64,7 @@ class PoolTest extends TestCase
         $connection = $pool->get();
 
         $this->assertSame($connectionMock, $connection);
-        $this->assertEquals(1, $this->getPrivateProperty($pool, 'currentConnections'));
+        $this->assertEquals(1, $this->getCurrentConnections($pool));
 
         // 检查 WeakMap 是否更新
         $lastUsedTimes = $this->getPrivateProperty($pool, 'lastUsedTimes');
@@ -113,7 +114,7 @@ class PoolTest extends TestCase
         $this->assertSame($connectionMock, $connection);
 
         // 确保 currentConnections 增加
-        $this->assertEquals(1, $this->getPrivateProperty($pool, 'currentConnections'));
+        $this->assertEquals(1, $this->getCurrentConnections($pool));
 
         // 确保连接已推入通道
         $channel = $this->getPrivateProperty($pool, 'channel');
@@ -142,14 +143,13 @@ class PoolTest extends TestCase
             $pool->createConnection();
         } finally {
             // 确保 currentConnections 减少
-            $this->assertEquals(0, $this->getPrivateProperty($pool, 'currentConnections'));
+            $this->assertEquals(0, $this->getCurrentConnections($pool));
         }
     }
 
     public function testCloseConnection()
     {
         $pool = new Pool(5);
-        $this->setPrivateProperty($pool, 'currentConnections', 1);
 
         $connection = $this->createMock(ConnectionMock::class);
 
@@ -165,7 +165,7 @@ class PoolTest extends TestCase
         $pool->closeConnection($connection);
 
         // 确保 currentConnections 减少
-        $this->assertEquals(0, $this->getPrivateProperty($pool, 'currentConnections'));
+        $this->assertEquals(0, $this->getCurrentConnections($pool));
 
         // 确保连接从 WeakMap 中移除
         $this->assertFalse($lastUsedTimes->offsetExists($connection));
@@ -174,7 +174,6 @@ class PoolTest extends TestCase
     public function testCloseConnectionWithExceptionInDestroyHandler()
     {
         $pool = new Pool(5);
-        $this->setPrivateProperty($pool, 'currentConnections', 1);
 
         $connection = $this->createMock(stdClass::class);
 
@@ -199,7 +198,7 @@ class PoolTest extends TestCase
         $pool->closeConnection($connection);
 
         // 确保 currentConnections 减少
-        $this->assertEquals(0, $this->getPrivateProperty($pool, 'currentConnections'));
+        $this->assertEquals(0, $this->getCurrentConnections($pool));
 
         // 确保连接从 WeakMap 中移除
         $this->assertFalse($lastUsedTimes->offsetExists($connection));
@@ -231,7 +230,7 @@ class PoolTest extends TestCase
         $lastHeartbeatTimes[$connection] = time() - 100; // 超过心跳间隔
 
         // 调用受保护的 checkConnections 方法
-        $reflectedMethod = new \ReflectionMethod($pool, 'checkConnections');
+        $reflectedMethod = new ReflectionMethod($pool, 'checkConnections');
         $reflectedMethod->setAccessible(true);
         $reflectedMethod->invoke($pool);
 
@@ -250,28 +249,19 @@ class PoolTest extends TestCase
         });
 
         // 获取初始的 currentConnections
-        $initialConnections = $this->getPrivateProperty($pool, 'currentConnections');
+        $initialConnections = $this->getCurrentConnections($pool);
 
         // 从连接池获取一个连接
         $connection = $pool->get();
 
         // 检查 currentConnections 是否增加
-        $this->assertEquals($initialConnections + 1, $this->getPrivateProperty($pool, 'currentConnections'));
+        $this->assertEquals($initialConnections + 1, $this->getCurrentConnections($pool));
 
         // 不归还连接，并销毁连接对象
         unset($connection);
 
-        // 强制触发垃圾回收
-        gc_collect_cycles();
-
-        // 模拟时间经过，让连接池检测到连接已销毁
-        // 调用受保护的 checkConnections 方法
-        $reflectedMethod = new \ReflectionMethod($pool, 'checkConnections');
-        $reflectedMethod->setAccessible(true);
-        $reflectedMethod->invoke($pool);
-
         // 检查 currentConnections 是否减少
-        $this->assertEquals($initialConnections, $this->getPrivateProperty($pool, 'currentConnections'));
+        $this->assertEquals($initialConnections, $this->getCurrentConnections($pool));
     }
 
     private function getPrivateProperty($object, string $property)
@@ -289,6 +279,11 @@ class PoolTest extends TestCase
         $prop->setAccessible(true);
         $prop->setValue($object, $value);
     }
+    private function getCurrentConnections($object): int
+    {
+        return count($this->getPrivateProperty($object, 'lastUsedTimes'));
+    }
+
 }
 
 // 定义 ConnectionMock 类用于测试

@@ -52,4 +52,18 @@ interface PoolInterface
      */
     public function closeConnection(object $connection): void;
 
+    /**
+     * Get the number of connections in the connection pool.
+     *
+     * @return int
+     */
+    public function getConnectionCount(): int;
+
+    /**
+     * Close connections in the connection pool.
+     *
+     * @return void
+     */
+    public function closeConnections(): void;
+
 }

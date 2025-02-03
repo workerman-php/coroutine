@@ -4,15 +4,21 @@ namespace test;
 
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
+use Workerman\Coroutine\Coroutine;
 use Workerman\Coroutine\Pool;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;
 use stdClass;
 use RuntimeException;
 use Exception;
+use Workerman\Events\Event;
+use Workerman\Events\Select;
+use Workerman\Timer;
+use Workerman\Worker;
 
 class PoolTest extends TestCase
 {
+
     public function testConstructorWithConfig()
     {
         $config = [
@@ -67,9 +73,11 @@ class PoolTest extends TestCase
         $this->assertEquals(1, $this->getCurrentConnections($pool));
 
         // 检查 WeakMap 是否更新
+        $connections = $this->getPrivateProperty($pool, 'connections');
         $lastUsedTimes = $this->getPrivateProperty($pool, 'lastUsedTimes');
         $lastHeartbeatTimes = $this->getPrivateProperty($pool, 'lastHeartbeatTimes');
 
+        $this->assertTrue($connections->offsetExists($connection));
         $this->assertTrue($lastUsedTimes->offsetExists($connection));
         $this->assertTrue($lastHeartbeatTimes->offsetExists($connection));
     }
@@ -77,11 +85,14 @@ class PoolTest extends TestCase
     public function testPutConnection()
     {
         $pool = new Pool(5);
-        $connection = new stdClass();
 
-        // 模拟连接属于连接池
-        $lastUsedTimes = $this->getPrivateProperty($pool, 'lastUsedTimes');
-        $lastUsedTimes[$connection] = time();
+        $connectionMock = $this->createMock(stdClass::class);
+
+        $pool->setConnectionCreator(function () use ($connectionMock) {
+            return $connectionMock;
+        });
+
+        $connection = $pool->get();
 
         $pool->put($connection);
 
@@ -116,16 +127,50 @@ class PoolTest extends TestCase
         // 确保 currentConnections 增加
         $this->assertEquals(1, $this->getCurrentConnections($pool));
 
-        // 确保连接已推入通道
-        $channel = $this->getPrivateProperty($pool, 'channel');
-        $this->assertEquals(1, $channel->length());
-
         // 检查 WeakMap 是否更新
+        $connections = $this->getPrivateProperty($pool, 'connections');
         $lastUsedTimes = $this->getPrivateProperty($pool, 'lastUsedTimes');
         $lastHeartbeatTimes = $this->getPrivateProperty($pool, 'lastHeartbeatTimes');
 
+        $this->assertTrue($connections->offsetExists($connection));
         $this->assertTrue($lastUsedTimes->offsetExists($connection));
         $this->assertTrue($lastHeartbeatTimes->offsetExists($connection));
+    }
+
+    public function testCreateMaxConnections()
+    {
+        if (in_array(Worker::$eventLoopClass, [Select::class, Event::class])) {
+            $this->assertTrue(true);
+            return;
+        }
+        $maxConnections = 2;
+        $pool = new Pool($maxConnections);
+
+        $pool->setConnectionCreator(function () {
+            Timer::sleep(0.01);
+            return $this->createMock(stdClass::class);
+        });
+
+        $connections = [];
+        for ($i = 0; $i < 3; $i++) {
+            Coroutine::create(function () use ($pool, &$connections) {
+                $connections[] = $pool->get();
+            });
+        }
+
+        Timer::sleep(0.1);
+        $this->assertEquals($maxConnections, $this->getCurrentConnections($pool));
+
+        $lastUsedTimes = $this->getPrivateProperty($pool, 'lastUsedTimes');
+        $lastHeartbeatTimes = $this->getPrivateProperty($pool, 'lastHeartbeatTimes');
+
+        $this->assertCount($maxConnections, $lastUsedTimes);
+        $this->assertCount($maxConnections, $lastHeartbeatTimes);
+
+        foreach ($connections as $connection) {
+            $pool->put($connection);
+        }
+
     }
 
     public function testCreateConnectionThrowsException()
@@ -154,8 +199,8 @@ class PoolTest extends TestCase
         $connection = $this->createMock(ConnectionMock::class);
 
         // 模拟连接属于连接池
-        $lastUsedTimes = $this->getPrivateProperty($pool, 'lastUsedTimes');
-        $lastUsedTimes[$connection] = time();
+        $connections = $this->getPrivateProperty($pool, 'connections');
+        $connections[$connection] = time();
 
         $connection->expects($this->once())->method('close');
         $pool->setConnectionCloser(function ($conn) {
@@ -168,7 +213,41 @@ class PoolTest extends TestCase
         $this->assertEquals(0, $this->getCurrentConnections($pool));
 
         // 确保连接从 WeakMap 中移除
-        $this->assertFalse($lastUsedTimes->offsetExists($connection));
+        $this->assertFalse($connections->offsetExists($connection));
+    }
+
+    public function testCloseConnections()
+    {
+        $maxConnections = 5;
+
+        $pool = new Pool($maxConnections);
+
+        $pool->setConnectionCreator(function () {
+            $connection = $this->createMock(ConnectionMock::class);
+            $connection->expects($this->once())->method('close');
+            return $connection;
+        });
+
+        $pool->setConnectionCloser(function ($conn) {
+            $conn->close();
+        });
+
+        $connections = [];
+        for ($i = 0; $i < $maxConnections; $i++) {
+            $connections[] = $pool->get();
+        }
+        $this->assertEquals($maxConnections, $this->getCurrentConnections($pool));
+
+        $pool->closeConnections();
+        $this->assertEquals($maxConnections, $this->getCurrentConnections($pool));
+
+        foreach ($connections as $connection) {
+            $pool->put($connection);
+        }
+        $this->assertEquals($maxConnections, $this->getCurrentConnections($pool));
+        $pool->closeConnections();
+        $this->assertEquals(0, $this->getCurrentConnections($pool));
+
     }
 
     public function testCloseConnectionWithExceptionInDestroyHandler()
@@ -178,8 +257,8 @@ class PoolTest extends TestCase
         $connection = $this->createMock(stdClass::class);
 
         // 模拟连接属于连接池
-        $lastUsedTimes = $this->getPrivateProperty($pool, 'lastUsedTimes');
-        $lastUsedTimes[$connection] = time();
+        $connections = $this->getPrivateProperty($pool, 'connections');
+        $connections[$connection] = time();
 
         $exception = new Exception('Error closing connection');
 
@@ -201,7 +280,7 @@ class PoolTest extends TestCase
         $this->assertEquals(0, $this->getCurrentConnections($pool));
 
         // 确保连接从 WeakMap 中移除
-        $this->assertFalse($lastUsedTimes->offsetExists($connection));
+        $this->assertFalse($connections->offsetExists($connection));
     }
 
     public function testHeartbeatChecker()
@@ -223,6 +302,9 @@ class PoolTest extends TestCase
         $channel->push($connection);
 
         // 设置连接的上次使用时间和心跳时间
+        $connections = $this->getPrivateProperty($pool, 'connections');
+        $connections[$connection] = time();
+
         $lastUsedTimes = $this->getPrivateProperty($pool, 'lastUsedTimes');
         $lastUsedTimes[$connection] = time();
 
@@ -279,9 +361,10 @@ class PoolTest extends TestCase
         $prop->setAccessible(true);
         $prop->setValue($object, $value);
     }
+
     private function getCurrentConnections($object): int
     {
-        return count($this->getPrivateProperty($object, 'lastUsedTimes'));
+        return $object->getConnectionCount();
     }
 
 }

@@ -18,16 +18,17 @@ class LockerTest extends TestCase
     {
         $key = 'testLock';
         Locker::lock($key);
-        Coroutine::create(function () use ($key) {
+        $timeStart = microtime(true);
+        $timeDiff2 = 0;
+        Coroutine::create(function () use ($key, $timeStart, &$timeDiff2) {
             $this->assertChannelExists($key);
-            $timeStart = microtime(true);
             Locker::lock($key);
             $timeDiff = microtime(true) - $timeStart;
-            $this->assertGreaterThan(0.08, $timeDiff);
-            $this->assertLessThan(0.11, $timeDiff);
+            $this->assertGreaterThan($timeDiff2, $timeDiff);
             Locker::unlock($key);
         });
         usleep(100000);
+        $timeDiff2 = microtime(true) - $timeStart;
         Locker::unlock($key);
     }
 

@@ -11,10 +11,7 @@ use Workerman\Worker;
 require_once __DIR__ . '/../vendor/autoload.php';
 
 if (DIRECTORY_SEPARATOR === '/' || (!extension_loaded('swow') && !class_exists(Revolt\EventLoop::class))) {
-    $worker = new Worker();
-    $worker->eventLoop = Select::class;
-    $worker->onWorkerStart = function () {
-        echo "TEST EVENT-LOOP: Select\n";
+    create_test_worker(function () {
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
             '--colors=always',
@@ -23,14 +20,11 @@ if (DIRECTORY_SEPARATOR === '/' || (!extension_loaded('swow') && !class_exists(R
             __DIR__ . '/BarrierTest.php',
             __DIR__ . '/ContextTest.php',
         ]);
-    };
+    }, Select::class);
 }
 
 if (extension_loaded('event')) {
-    $worker = new Worker();
-    $worker->eventLoop = Event::class;
-    $worker->onWorkerStart = function () {
-        echo "TEST EVENT-LOOP: Event\n";
+    create_test_worker(function () {
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
             '--colors=always',
@@ -39,50 +33,62 @@ if (extension_loaded('event')) {
             __DIR__ . '/BarrierTest.php',
             __DIR__ . '/ContextTest.php',
         ]);
-    };
+    }, Event::class);
 }
 
 if (class_exists(Revolt\EventLoop::class) && (DIRECTORY_SEPARATOR === '/' || !extension_loaded('swow'))) {
-    $worker = new Worker();
-    $worker->eventLoop = Fiber::class;
-    $worker->onWorkerStart = function () {
-        echo "TEST EVENT-LOOP: Fiber\n";
+    create_test_worker(function () {
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
             '--colors=always',
             ...glob(__DIR__ . '/*Test.php')
         ]);
-    };
+    }, Fiber::class);
 }
 
 if (extension_loaded('Swoole')) {
-    $worker = new Worker();
-    $worker->eventLoop = Swoole::class;
-    $worker->onWorkerStart = function () {
-        echo "TEST EVENT-LOOP: Swoole\n";
+    create_test_worker(function () {
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
             '--colors=always',
             ...glob(__DIR__ . '/*Test.php')
         ]);
-        Timer::delay(1, function () {
-            function_exists('posix_kill') && posix_kill(posix_getppid(), SIGINT);
-        });
-    };
+    }, Swoole::class);
 }
 
 if (extension_loaded('Swow')) {
-    $worker = new Worker();
-    $worker->eventLoop = Swow::class;
-    $worker->onWorkerStart = function () {
-        echo "TEST EVENT-LOOP: Swow\n";
+    create_test_worker(function () {
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
             '--colors=always',
             ...glob(__DIR__ . '/*Test.php')
         ]);
-        Timer::delay(1, function () {
-            function_exists('posix_kill') && posix_kill(posix_getppid(), SIGINT);
+    }, Swow::class);
+}
+
+function create_test_worker(Closure $callable, $eventLoopClass): void
+{
+    $worker = new Worker();
+    $worker->eventLoop = $eventLoopClass;
+    $worker->onWorkerStart = function () use ($callable, $eventLoopClass) {
+        $fp = fopen(__FILE__, 'r+');
+        flock($fp, LOCK_EX);
+        echo PHP_EOL . PHP_EOL. PHP_EOL . '[TEST EVENT-LOOP: ' . basename(str_replace('\\', '/', $eventLoopClass)) . ']' . PHP_EOL;
+        try {
+            $callable();
+        } catch (Throwable $e) {
+            echo $e;
+        } finally {
+            flock($fp, LOCK_UN);
+        }
+        Timer::repeat(1, function () use ($fp) {
+            if (flock($fp, LOCK_EX | LOCK_NB)) {
+                if(function_exists('posix_kill')) {
+                    posix_kill(posix_getppid(), SIGINT);
+                } else {
+                    Worker::stopAll();
+                }
+            }
         });
     };
 }

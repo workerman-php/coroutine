@@ -17,6 +17,7 @@ if (DIRECTORY_SEPARATOR === '/' || (!extension_loaded('swow') && !class_exists(R
         echo "TEST EVENT-LOOP: Select\n";
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
+            '--colors=always',
             __DIR__ . '/ChannelTest.php',
             __DIR__ . '/PoolTest.php',
             __DIR__ . '/BarrierTest.php',
@@ -32,6 +33,7 @@ if (extension_loaded('event')) {
         echo "TEST EVENT-LOOP: Event\n";
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
+            '--colors=always',
             __DIR__ . '/ChannelTest.php',
             __DIR__ . '/PoolTest.php',
             __DIR__ . '/BarrierTest.php',
@@ -47,6 +49,7 @@ if (class_exists(Revolt\EventLoop::class) && (DIRECTORY_SEPARATOR === '/' || !ex
         echo "TEST EVENT-LOOP: Fiber\n";
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
+            '--colors=always',
             ...glob(__DIR__ . '/*Test.php')
         ]);
     };
@@ -59,6 +62,7 @@ if (extension_loaded('Swoole')) {
         echo "TEST EVENT-LOOP: Swoole\n";
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
+            '--colors=always',
             ...glob(__DIR__ . '/*Test.php')
         ]);
         Timer::delay(1, function () {
@@ -74,6 +78,7 @@ if (extension_loaded('Swow')) {
         echo "TEST EVENT-LOOP: Swow\n";
         (new PHPUnit\TextUI\Application)->run([
             __DIR__ . '/../vendor/bin/phpunit',
+            '--colors=always',
             ...glob(__DIR__ . '/*Test.php')
         ]);
         Timer::delay(1, function () {

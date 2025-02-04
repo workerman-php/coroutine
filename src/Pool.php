@@ -128,10 +128,10 @@ class Pool implements PoolInterface
     /**
      * Set the connection creator.
      *
-     * @param Closure $connectionCreateHandler
+     * @param callable $connectionCreateHandler
      * @return $this
      */
-    public function setConnectionCreator(Closure $connectionCreateHandler): self
+    public function setConnectionCreator(callable $connectionCreateHandler): self
     {
         $this->connectionCreateHandler = $connectionCreateHandler;
         return $this;
@@ -140,10 +140,10 @@ class Pool implements PoolInterface
     /**
      * Set the connection closer.
      *
-     * @param Closure $connectionDestroyHandler
+     * @param callable $connectionDestroyHandler
      * @return $this
      */
-    public function setConnectionCloser(Closure $connectionDestroyHandler): self
+    public function setConnectionCloser(callable $connectionDestroyHandler): self
     {
         $this->connectionDestroyHandler = $connectionDestroyHandler;
         return $this;
@@ -152,10 +152,10 @@ class Pool implements PoolInterface
     /**
      * Set the connection heartbeat checker.
      *
-     * @param Closure $connectionHeartbeatHandler
+     * @param callable $connectionHeartbeatHandler
      * @return $this
      */
-    public function setHeartbeatChecker(Closure $connectionHeartbeatHandler): self
+    public function setHeartbeatChecker(callable $connectionHeartbeatHandler): self
     {
         $this->connectionHeartbeatHandler = $connectionHeartbeatHandler;
         return $this;

@@ -253,8 +253,12 @@ class PoolTest extends TestCase
             $connections[] = $pool->get();
         }
         $this->assertEquals($maxConnections, $this->getCurrentConnections($pool));
+        foreach ($connections as $connection) {
+            $pool->put($connection);
+        }
         $pool->closeConnections();
         unset($connections);
+        $this->assertEquals(0, $this->getCurrentConnections($pool));
     }
 
     public function testCloseConnectionWithExceptionInDestroyHandler()

@@ -2,6 +2,7 @@
 
 namespace Workerman\Coroutine\Context;
 
+use ArrayObject;
 use Swow\Coroutine;
 use WeakMap;
 
@@ -15,9 +16,14 @@ class Swow implements ContextInterface
     /**
      * @inheritDoc
      */
-    public static function get(string $name, mixed $default = null): mixed
+    public static function get(?string $name = null, mixed $default = null): mixed
     {
-        return static::$contexts[Coroutine::getCurrent()][$name] ?? $default;
+        $fiber = Coroutine::getCurrent();
+        if ($name === null) {
+            static::$contexts[$fiber] ??= new ArrayObject();
+            return static::$contexts[$fiber];
+        }
+        return static::$contexts[$fiber][$name] ?? $default;
     }
 
     /**
@@ -26,7 +32,7 @@ class Swow implements ContextInterface
     public static function set(string $name, $value): void
     {
         $coroutine = Coroutine::getCurrent();
-        static::$contexts[$coroutine] ??= [];
+        static::$contexts[$coroutine] ??= new ArrayObject();
         static::$contexts[$coroutine][$name] = $value;
     }
 
@@ -35,13 +41,14 @@ class Swow implements ContextInterface
      */
     public static function has(string $name): bool
     {
-        return isset(static::$contexts[Coroutine::getCurrent()][$name]);
+        $fiber = Coroutine::getCurrent();
+        return isset(static::$contexts[$fiber]) && static::$contexts[$fiber]->offsetExists($name);
     }
 
     /**
      * @inheritDoc
      */
-    public static function init(array $data = []): void
+    public static function reset(?ArrayObject $data = null): void
     {
         $coroutine = Coroutine::getCurrent();
         static::$contexts[$coroutine] = $data;
@@ -60,11 +67,11 @@ class Swow implements ContextInterface
      *
      * @return void
      */
-    public static function initWeakMap(): void
+    public static function initContext(): void
     {
         self::$contexts = new WeakMap();
     }
 
 }
 
-Swow::initWeakMap();
+Swow::initContext();

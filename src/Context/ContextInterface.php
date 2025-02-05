@@ -2,6 +2,8 @@
 
 namespace Workerman\Coroutine\Context;
 
+use ArrayObject;
+
 /**
  * Interface ContextInterface
  */
@@ -11,11 +13,11 @@ interface ContextInterface
      * Get the value from the context with the specified name.
      * If the name does not exist, return the default value.
      *
-     * @param string $name The name of the value to get.
+     * @param string|null $name The name of the value to get.
      * @param mixed $default The default value to return if the name does not exist.
      * @return mixed The value from the context or the default value.
      */
-    public static function get(string $name, mixed $default = null): mixed;
+    public static function get(?string $name = null, mixed $default = null): mixed;
 
     /**
      * Set the value in the context with the specified name.
@@ -36,9 +38,9 @@ interface ContextInterface
     /**
      * Initialize the context with an array of data.
      *
-     * @param array $data The array of data to initialize the context.
+     * @param ArrayObject|null $data The array of data to initialize the context.
      */
-    public static function init(array $data = []): void;
+    public static function reset(?ArrayObject $data = null): void;
 
     /**
      * Destroy the context.

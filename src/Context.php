@@ -16,8 +16,8 @@ declare(strict_types=1);
 
 namespace Workerman\Coroutine;
 
+use ArrayObject;
 use Workerman\Coroutine\Context\ContextInterface;
-use Workerman\Events\Fiber;
 use Workerman\Events\Swoole;
 use Workerman\Events\Swow;
 use Workerman\Worker;
@@ -36,7 +36,7 @@ class Context implements ContextInterface
     /**
      * @inheritDoc
      */
-    public static function get(string $name,mixed $default = null): mixed
+    public static function get(?string $name = null, mixed $default = null): mixed
     {
         return static::$driver::get($name, $default);
     }
@@ -60,9 +60,9 @@ class Context implements ContextInterface
     /**
      * @inheritDoc
      */
-    public static function init(array $data = []): void
+    public static function reset(?ArrayObject $data = null): void
     {
-        static::$driver::init($data);
+        static::$driver::reset($data);
     }
 
     /**

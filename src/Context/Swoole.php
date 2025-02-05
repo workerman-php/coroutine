@@ -2,16 +2,22 @@
 
 namespace Workerman\Coroutine\Context;
 
+use ArrayObject;
 use Swoole\Coroutine;
+
 class Swoole implements ContextInterface
 {
 
     /**
      * @inheritDoc
      */
-    public static function get(string $name, mixed $default = null): mixed
+    public static function get(?string $name = null, mixed $default = null): mixed
     {
-        return Coroutine::getContext()[$name] ?? $default;
+        $context = Coroutine::getContext();
+        if ($name === null) {
+            return $context;
+        }
+        return $context[$name] ?? $default;
     }
 
     /**
@@ -27,18 +33,17 @@ class Swoole implements ContextInterface
      */
     public static function has(string $name): bool
     {
-        return isset(Coroutine::getContext()[$name]);
+        $context = Coroutine::getContext();
+        return $context->offsetExists($name);
     }
 
     /**
      * @inheritDoc
      */
-    public static function init(array $data = []): void
+    public static function reset(?ArrayObject $data = null): void
     {
         $context = Coroutine::getContext();
-        foreach ($data as $key => $value) {
-            $context[$key] = $value;
-        }
+        $context->exchangeArray($data ?: []);
     }
 
     /**
@@ -47,9 +52,7 @@ class Swoole implements ContextInterface
     public static function destroy(): void
     {
         $context = Coroutine::getContext();
-        foreach ($context as $key => $value) {
-            unset($context[$key]);
-        }
+        $context->exchangeArray([]);
     }
 
 }

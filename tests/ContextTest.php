@@ -2,6 +2,7 @@
 
 namespace tests;
 
+use ArrayObject;
 use PHPUnit\Framework\TestCase;
 use Workerman\Coroutine\Context;
 use Workerman\Coroutine\Coroutine;
@@ -12,9 +13,26 @@ class ContextTest extends TestCase
     public function testContextSetAndGetWithinCoroutine()
     {
         Coroutine::create(function () {
-            Context::set('key', 'value');
-            $this->assertEquals('value', Context::get('key'));
+            $key = 'testContextSetAndGetWithinCoroutine';
+            Context::set($key, 'value');
+            $this->assertEquals('value', Context::get($key));
         });
+    }
+
+    public function testContextGet()
+    {
+        Context::reset(new ArrayObject(['not_exist' => 'value']));
+        $key = 'testContextGet';
+        Context::reset(new ArrayObject([$key => 'value']));
+        $context = Context::get();
+        $this->assertArrayNotHasKey('not_exist', $context);
+        $this->assertArrayHasKey($key, $context);
+        $this->assertEquals('value', $context[$key]);
+        $this->assertInstanceOf('ArrayObject', $context);
+        unset($context[$key]);
+        $this->assertNull(Context::get($key));
+        $context[$key] = 'value';
+        $this->assertEquals('value', Context::get($key));
     }
 
     public function testContextIsolationBetweenCoroutines()
@@ -62,10 +80,11 @@ class ContextTest extends TestCase
         });
     }
 
-    public function testContextInitMethod()
+    public function testContextResetMethod()
     {
         Coroutine::create(function () {
-            Context::init(['key1' => 'value1', 'key2' => 'value2']);
+            Context::reset(new ArrayObject(['key3' => 'value1']));
+            Context::reset(new ArrayObject(['key1' => 'value1', 'key2' => 'value2']));
             $this->assertEquals('value1', Context::get('key1'));
             $this->assertEquals('value2', Context::get('key2'));
             // Test that other keys are not set

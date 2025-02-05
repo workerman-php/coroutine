@@ -7,7 +7,7 @@ namespace tests;
 use PHPUnit\Framework\TestCase;
 use Workerman\Coroutine\Locker;
 use RuntimeException;
-use Workerman\Coroutine\Coroutine;
+use Workerman\Coroutine;
 use ReflectionClass;
 use Workerman\Timer;
 

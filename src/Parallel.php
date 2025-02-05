@@ -17,6 +17,7 @@ declare(strict_types=1);
 namespace Workerman\Coroutine;
 
 use Throwable;
+use Workerman\Coroutine;
 
 /**
  * Class Parallel

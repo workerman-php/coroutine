@@ -4,7 +4,7 @@ namespace test;
 
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
-use Workerman\Coroutine\Coroutine;
+use Workerman\Coroutine;
 use Workerman\Coroutine\Pool;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;

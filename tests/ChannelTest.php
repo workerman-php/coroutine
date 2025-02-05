@@ -11,7 +11,7 @@ use stdClass;
 use Workerman\Coroutine\Channel;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Workerman\Coroutine\Channel\Memory;
-use Workerman\Coroutine\Coroutine;
+use Workerman\Coroutine;
 
 class ChannelTest extends TestCase
 {

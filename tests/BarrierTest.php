@@ -6,7 +6,7 @@ namespace tests;
 
 use PHPUnit\Framework\TestCase;
 use Workerman\Coroutine\Barrier;
-use Workerman\Coroutine\Coroutine;
+use Workerman\Coroutine;
 use Workerman\Timer;
 
 /**

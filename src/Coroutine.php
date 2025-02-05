@@ -14,7 +14,7 @@
 
 declare(strict_types=1);
 
-namespace Workerman\Coroutine;
+namespace Workerman;
 
 use Workerman\Coroutine\Coroutine\CoroutineInterface;
 use Workerman\Coroutine\Coroutine\Fiber;

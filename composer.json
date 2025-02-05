@@ -9,7 +9,8 @@
   },
   "autoload": {
     "psr-4": {
-      "Workerman\\Coroutine\\": "src"
+      "Workerman\\Coroutine\\": "src",
+      "Workerman\\": "src"
     }
   },
   "require-dev": {
@@ -19,7 +20,8 @@
   "autoload-dev": {
     "psr-4": {
       "Workerman\\Coroutine\\": "src",
-      "tests\\": "tests/"
+      "Workerman\\": "src",
+      "tests\\": "tests"
     }
   },
   "scripts": {

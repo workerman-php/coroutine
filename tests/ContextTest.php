@@ -5,7 +5,7 @@ namespace tests;
 use ArrayObject;
 use PHPUnit\Framework\TestCase;
 use Workerman\Coroutine\Context;
-use Workerman\Coroutine\Coroutine;
+use Workerman\Coroutine;
 
 // Now, the test cases
 class ContextTest extends TestCase

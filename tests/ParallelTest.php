@@ -4,7 +4,7 @@ namespace tests;
 
 use PHPUnit\Framework\TestCase;
 use Workerman\Coroutine\Parallel;
-use Workerman\Coroutine\Coroutine;
+use Workerman\Coroutine;
 use Workerman\Timer;
 
 /**

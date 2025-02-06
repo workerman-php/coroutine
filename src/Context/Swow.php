@@ -20,7 +20,7 @@ class Swow implements ContextInterface
     {
         $fiber = Coroutine::getCurrent();
         if ($name === null) {
-            static::$contexts[$fiber] ??= new ArrayObject();
+            static::$contexts[$fiber] ??= new ArrayObject([], ArrayObject::ARRAY_AS_PROPS);
             return static::$contexts[$fiber];
         }
         return static::$contexts[$fiber][$name] ?? $default;
@@ -32,7 +32,7 @@ class Swow implements ContextInterface
     public static function set(string $name, $value): void
     {
         $coroutine = Coroutine::getCurrent();
-        static::$contexts[$coroutine] ??= new ArrayObject();
+        static::$contexts[$coroutine] ??= new ArrayObject([], ArrayObject::ARRAY_AS_PROPS);
         static::$contexts[$coroutine][$name] = $value;
     }
 
@@ -51,6 +51,7 @@ class Swow implements ContextInterface
     public static function reset(?ArrayObject $data = null): void
     {
         $coroutine = Coroutine::getCurrent();
+        $data->setFlags(ArrayObject::ARRAY_AS_PROPS);
         static::$contexts[$coroutine] = $data;
     }
 

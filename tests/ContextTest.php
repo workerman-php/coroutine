@@ -26,12 +26,19 @@ class ContextTest extends TestCase
         Context::reset(new ArrayObject([$key => 'value']));
         $context = Context::get();
         $this->assertArrayNotHasKey('not_exist', $context);
+        $this->assertObjectNotHasProperty('not_exist', $context);
         $this->assertArrayHasKey($key, $context);
+        $this->assertObjectHasProperty($key, $context);
         $this->assertEquals('value', $context[$key]);
+        $this->assertEquals('value', $context->$key);
         $this->assertInstanceOf('ArrayObject', $context);
         unset($context[$key]);
         $this->assertNull(Context::get($key));
         $context[$key] = 'value';
+        $this->assertEquals('value', Context::get($key));
+        unset($context->$key);
+        $this->assertNull(Context::get($key));
+        $context->$key = 'value';
         $this->assertEquals('value', Context::get($key));
     }
 

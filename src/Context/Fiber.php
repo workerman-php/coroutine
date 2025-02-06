@@ -31,7 +31,7 @@ class Fiber implements ContextInterface
             return $name !== null ? (static::$nonFiberContext[$name] ?? $default) : static::$nonFiberContext;
         }
         if ($name === null) {
-            return static::$contexts[$fiber] ??= new ArrayObject();
+            return static::$contexts[$fiber] ??= new ArrayObject([], ArrayObject::ARRAY_AS_PROPS);
         }
         return static::$contexts[$fiber][$name] ?? $default;
     }
@@ -46,7 +46,7 @@ class Fiber implements ContextInterface
             static::$nonFiberContext[$name] = $value;
             return;
         }
-        static::$contexts[$fiber] ??= new ArrayObject();
+        static::$contexts[$fiber] ??= new ArrayObject([], ArrayObject::ARRAY_AS_PROPS);
         static::$contexts[$fiber][$name] = $value;
     }
 
@@ -67,9 +67,14 @@ class Fiber implements ContextInterface
      */
     public static function reset(?ArrayObject $data = null): void
     {
+        if ($data) {
+            $data->setFlags(ArrayObject::ARRAY_AS_PROPS);
+        } else {
+            $data = new ArrayObject([], ArrayObject::ARRAY_AS_PROPS);
+        }
         $fiber = BaseFiber::getCurrent();
         if ($fiber === null) {
-            static::$nonFiberContext = $data ?: new ArrayObject();
+            static::$nonFiberContext = $data;
             return;
         }
         static::$contexts[$fiber] = $data;
@@ -82,7 +87,7 @@ class Fiber implements ContextInterface
     {
         $fiber = BaseFiber::getCurrent();
         if ($fiber === null) {
-            static::$nonFiberContext = new ArrayObject();
+            static::$nonFiberContext = new ArrayObject([], ArrayObject::ARRAY_AS_PROPS);
             return;
         }
         unset(static::$contexts[$fiber]);
@@ -94,7 +99,7 @@ class Fiber implements ContextInterface
     public static function initContext(): void
     {
         static::$contexts = new WeakMap();
-        static::$nonFiberContext = new ArrayObject();
+        static::$nonFiberContext = new ArrayObject([], ArrayObject::ARRAY_AS_PROPS);
     }
 
 }

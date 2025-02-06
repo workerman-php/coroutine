@@ -14,6 +14,7 @@ class Swoole implements ContextInterface
     public static function get(?string $name = null, mixed $default = null): mixed
     {
         $context = Coroutine::getContext();
+        $context->setFlags(ArrayObject::ARRAY_AS_PROPS);
         if ($name === null) {
             return $context;
         }
@@ -43,6 +44,7 @@ class Swoole implements ContextInterface
     public static function reset(?ArrayObject $data = null): void
     {
         $context = Coroutine::getContext();
+        $context->setFlags(ArrayObject::ARRAY_AS_PROPS);
         $context->exchangeArray($data ?: []);
     }
 

@@ -12,12 +12,14 @@ use Workerman\Coroutine\WaitGroup\Fiber as FiberWaitGroup;
 use Workerman\Coroutine\WaitGroup\Swoole as SwooleWaitGroup;
 use Workerman\Coroutine\WaitGroup\Swow as SwowWaitGroup;
 use Workerman\Coroutine\WaitGroup\WaitGroupInterface;
+use Workerman\Events\Swoole;
+use Workerman\Events\Swow;
 
 /**
  * @method bool add(int $delta = 1)
  * @method bool done()
  * @method int count()
- * @method void wait(int $timeout = -1)
+ * @method bool wait(int|float $timeout = -1)
  */
 class WaitGroup
 {
@@ -46,9 +48,9 @@ class WaitGroup
      */
     protected static function driverClass(): string
     {
-        return static::$driverClass ??= $driverClass ?? match (Worker::$eventLoopClass ?? null) {
-            SwooleEvent::class => SwooleWaitGroup::class,
-            SwowEvent::class => SwowWaitGroup::class,
+        return static::$driverClass ??= match (Worker::$eventLoopClass ?? null) {
+            Swoole::class => SwooleWaitGroup::class,
+            Swow::class => SwowWaitGroup::class,
             default => FiberWaitGroup::class,
         };
     }

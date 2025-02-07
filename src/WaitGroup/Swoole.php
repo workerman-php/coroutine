@@ -16,7 +16,7 @@ class Swoole implements WaitGroupInterface
     /** @var WaitGroup */
     protected WaitGroup $_waitGroup;
 
-    /** @inheritdoc  */
+
     public function __construct()
     {
         $this->_waitGroup = new WaitGroup();

@@ -14,6 +14,9 @@ class Fiber implements WaitGroupInterface
     /** @var int */
     protected int $_count;
 
+    /**
+     * @var Channel
+     */
     protected Channel $_channel;
 
     public function __construct()

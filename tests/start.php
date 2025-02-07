@@ -19,6 +19,7 @@ if (DIRECTORY_SEPARATOR === '/' || (!extension_loaded('swow') && !class_exists(R
             __DIR__ . '/PoolTest.php',
             __DIR__ . '/BarrierTest.php',
             __DIR__ . '/ContextTest.php',
+            __DIR__ . '/WaitGroupTest.php',
         ]);
     }, Select::class);
 }
@@ -32,6 +33,7 @@ if (extension_loaded('event')) {
             __DIR__ . '/PoolTest.php',
             __DIR__ . '/BarrierTest.php',
             __DIR__ . '/ContextTest.php',
+            __DIR__ . '/WaitGroupTest.php',
         ]);
     }, Event::class);
 }

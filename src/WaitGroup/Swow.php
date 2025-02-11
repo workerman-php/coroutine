@@ -12,6 +12,7 @@ use Throwable;
 
 class Swow implements WaitGroupInterface
 {
+
     /** @var WaitGroup */
     protected WaitGroup $waitGroup;
 
@@ -37,8 +38,8 @@ class Swow implements WaitGroupInterface
     public function done(): bool
     {
         if ($this->count() > 0) {
-            $this->waitGroup->done();
             $this->count--;
+            $this->waitGroup->done();
         }
 
         return true;

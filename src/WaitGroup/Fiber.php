@@ -11,24 +11,25 @@ use Workerman\Coroutine\Channel\Fiber as Channel;
 
 class Fiber implements WaitGroupInterface
 {
+
     /** @var int */
-    protected int $_count;
+    protected int $count;
 
     /**
      * @var Channel
      */
-    protected Channel $_channel;
+    protected Channel $channel;
 
     public function __construct()
     {
-        $this->_count = 0;
-        $this->_channel = new Channel(1);
+        $this->count = 0;
+        $this->channel = new Channel(1);
     }
 
     /** @inheritdoc  */
     public function add(int $delta = 1): bool
     {
-        $this->_count += max($delta, 1);
+        $this->count += max($delta, 1);
 
         return true;
     }
@@ -36,9 +37,9 @@ class Fiber implements WaitGroupInterface
     /** @inheritdoc  */
     public function done(): bool
     {
-        $this->_count--;
-        if ($this->_count <= 0) {
-            $this->_channel->push(true);
+        $this->count--;
+        if ($this->count <= 0) {
+            $this->channel->push(true);
         }
 
         return true;
@@ -47,15 +48,16 @@ class Fiber implements WaitGroupInterface
     /** @inheritdoc  */
     public function count(): int
     {
-        return $this->_count;
+        return $this->count;
     }
 
     /** @inheritdoc  */
     public function wait(int|float $timeout = -1): bool
     {
        if ($this->count() > 0) {
-           return $this->_channel->pop($timeout);
+           return $this->channel->pop($timeout);
        }
        return true;
     }
+
 }

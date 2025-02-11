@@ -7,7 +7,7 @@ namespace tests;
 use PHPUnit\Framework\TestCase;
 use Workerman\Coroutine;
 use Workerman\Timer;
-use Workerman\WaitGroup;
+use Workerman\Coroutine\WaitGroup;
 
 /**
  * Class WaitGroupTest

@@ -5,8 +5,9 @@
  */
 declare(strict_types=1);
 
-namespace Workerman;
+namespace Workerman\Coroutine;
 
+use Workerman\Worker;
 use Workerman\Coroutine\Coroutine\CoroutineInterface;
 use Workerman\Coroutine\WaitGroup\Fiber as FiberWaitGroup;
 use Workerman\Coroutine\WaitGroup\Swoole as SwooleWaitGroup;

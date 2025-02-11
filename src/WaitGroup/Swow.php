@@ -12,22 +12,22 @@ use Swow\Sync\WaitGroup;
 class Swow implements WaitGroupInterface
 {
     /** @var WaitGroup */
-    protected WaitGroup $_waitGroup;
+    protected WaitGroup $waitGroup;
 
     /** @var int count */
-    protected int $_count;
+    protected int $count;
 
     public function __construct()
     {
-        $this->_waitGroup = new WaitGroup();
-        $this->_count = 0;
+        $this->waitGroup = new WaitGroup();
+        $this->count = 0;
     }
 
     /** @inheritdoc  */
     public function add(int $delta = 1): bool
     {
-        $this->_waitGroup->add($delta = max($delta, 1));
-        $this->_count += $delta;
+        $this->waitGroup->add($delta = max($delta, 1));
+        $this->count += $delta;
 
         return true;
     }
@@ -36,8 +36,8 @@ class Swow implements WaitGroupInterface
     public function done(): bool
     {
         if ($this->count() > 0) {
-            $this->_waitGroup->done();
-            $this->_count--;
+            $this->waitGroup->done();
+            $this->count--;
         }
 
         return true;
@@ -46,14 +46,14 @@ class Swow implements WaitGroupInterface
     /** @inheritdoc  */
     public function count(): int
     {
-        return $this->_count;
+        return $this->count;
     }
 
     /** @inheritdoc  */
     public function wait(int|float $timeout = -1): bool
     {
         try {
-            $this->_waitGroup->wait($timeout > 0 ? (int) ($timeout * 1000) : $timeout);
+            $this->waitGroup->wait($timeout > 0 ? (int) ($timeout * 1000) : $timeout);
             return true;
         } catch (\Throwable) {
             return false;

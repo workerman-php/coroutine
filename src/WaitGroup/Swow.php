@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Workerman\Coroutine\WaitGroup;
 
 use Swow\Sync\WaitGroup;
+use Throwable;
 
 class Swow implements WaitGroupInterface
 {
@@ -55,7 +56,7 @@ class Swow implements WaitGroupInterface
         try {
             $this->waitGroup->wait($timeout > 0 ? (int) ($timeout * 1000) : $timeout);
             return true;
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }

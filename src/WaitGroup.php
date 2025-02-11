@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Workerman\Coroutine;
 
+use BadMethodCallException;
 use Workerman\Worker;
 use Workerman\Coroutine\Coroutine\CoroutineInterface;
 use Workerman\Coroutine\WaitGroup\Fiber as FiberWaitGroup;
@@ -68,7 +69,7 @@ class WaitGroup
     public function __call(string $name, array $arguments): mixed
     {
         if (!method_exists($this->driver, $name)) {
-            throw new \BadMethodCallException("Method $name not exists. ");
+            throw new BadMethodCallException("Method $name not exists. ");
         }
 
         return $this->driver->$name(...$arguments);

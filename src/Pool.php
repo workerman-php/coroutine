@@ -213,6 +213,14 @@ class Pool implements PoolInterface
         if ($connection === $this->nonCoroutineConnection) {
             return;
         }
+        // The channel can only be used inside a coroutine. A connection acquired in a coroutine may
+        // be returned after that coroutine has ended, for example from a destruction callback.
+        // Pushing it there triggers an uncatchable Swoole\Error, so release the connection instead
+        // of returning it to the pool.
+        if (!Coroutine::isCoroutine()) {
+            $this->closeConnection($connection);
+            return;
+        }
         try {
             $this->channel->push($connection);
         } catch (Throwable $throwable) {

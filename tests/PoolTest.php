@@ -116,6 +116,36 @@ class PoolTest extends TestCase
         $pool->put($connection);
     }
 
+    public function testPutConnectionAcquiredInCoroutineReturnedOutsideCoroutine()
+    {
+        $pool = new Pool(5);
+
+        $closedCount = 0;
+        $pool->setConnectionCreator(function () {
+            return new stdClass();
+        });
+        $pool->setConnectionCloser(function ($connection) use (&$closedCount) {
+            $closedCount++;
+        });
+
+        // Connections are normally acquired inside a coroutine and may be returned after it ended,
+        // for example from a destruction callback. The channel is unusable there, so the connection
+        // has to be released instead of pushed back.
+        $connection = null;
+        Coroutine::create(function () use ($pool, &$connection) {
+            $connection = $pool->get();
+        });
+        $this->assertSame(1, $pool->getConnectionCount());
+
+        $this->runOutsideCoroutineContext(function () use ($pool, $connection) {
+            $pool->put($connection);
+        });
+
+        $this->assertSame(1, $closedCount);
+        $this->assertSame(0, $pool->getConnectionCount());
+        $this->assertNull($this->getPrivateProperty($pool, 'nonCoroutineConnection'));
+    }
+
     public function testCreateConnection()
     {
         $pool = new Pool(5);
@@ -382,6 +412,35 @@ class PoolTest extends TestCase
         return $object->getConnectionCount();
     }
 
+    /**
+     * Run a callback while the coroutine driver reports a non-coroutine context.
+     *
+     * The test worker dispatches callbacks into a coroutine, so a plain test body is always
+     * coroutine-bound. The driver is swapped temporarily to reproduce returning a connection from
+     * outside a coroutine, and restored afterwards even when the callback fails.
+     */
+    private function runOutsideCoroutineContext(callable $callback): void
+    {
+        $driverClass = new ReflectionProperty(Coroutine::class, 'driverClass');
+        $driverClass->setAccessible(true);
+        $originalDriverClass = $driverClass->getValue();
+        $driverClass->setValue(null, OutsideCoroutineDriver::class);
+        try {
+            $callback();
+        } finally {
+            $driverClass->setValue(null, $originalDriverClass);
+        }
+    }
+
+}
+
+// 模拟非协程上下文的协程驱动，用于覆盖连接池在协程外的归还路径
+class OutsideCoroutineDriver extends \Workerman\Coroutine\Coroutine\Fiber
+{
+    public static function isCoroutine(): bool
+    {
+        return false;
+    }
 }
 
 // 定义 ConnectionMock 类用于测试

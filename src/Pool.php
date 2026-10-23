@@ -214,11 +214,14 @@ class Pool implements PoolInterface
             return;
         }
         try {
-            $this->channel->push($connection);
+            if ($this->channel->push($connection)) {
+                return;
+            }
         } catch (Throwable $throwable) {
             $this->closeConnection($connection);
             throw $throwable;
         }
+        $this->closeConnection($connection);
     }
 
     /**
@@ -297,7 +300,7 @@ class Pool implements PoolInterface
         $num = $this->channel->length();
         $time = time();
         for($i = $num; $i > 0; $i--) {
-            $connection = $this->channel->pop(0.001);
+            $connection = $this->channel->pop(0);
             if (!$connection) {
                 return;
             }
@@ -355,7 +358,7 @@ class Pool implements PoolInterface
     {
         $num = $this->channel->length();
         for ($i = $num; $i > 0; $i--) {
-            $connection = $this->channel->pop(0.001);
+            $connection = $this->channel->pop(0);
             if (!$connection) {
                 return;
             }

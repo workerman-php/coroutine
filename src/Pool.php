@@ -21,9 +21,9 @@ use Psr\Log\LoggerInterface;
 use stdClass;
 use Throwable;
 use WeakMap;
+use WeakReference;
 use Workerman\Coroutine;
 use Workerman\Coroutine\Exception\PoolException;
-use Workerman\Coroutine\Utils\DestructionWatcher;
 use Workerman\Timer;
 use Workerman\Worker;
 
@@ -128,8 +128,15 @@ class Pool implements PoolInterface
         $this->connections = new WeakMap();
 
         if (Worker::isRunning()) {
-            Timer::repeat(1, function () {
-                $this->checkConnections();
+            $weakPool = WeakReference::create($this);
+            $timerId = Timer::repeat(1, static function () use ($weakPool, &$timerId) {
+                if ($pool = $weakPool->get()) {
+                    $pool->checkConnections();
+                    return;
+                }
+                // Deleting a timer inside its own callback kills the current coroutine under Swow,
+                // which skips Workerman's timer bookkeeping, so delete it from another callback.
+                Timer::delay(0.001, static fn () => Timer::del($timerId));
             });
         }
     }

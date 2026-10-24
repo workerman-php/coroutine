@@ -48,6 +48,11 @@ class Pool implements PoolInterface
     protected WeakMap $connections;
 
     /**
+     * @var WeakMap
+     */
+    protected WeakMap $idleConnections;
+
+    /**
      * @var ?object
      */
     protected ?object $nonCoroutineConnection = null;
@@ -126,6 +131,7 @@ class Pool implements PoolInterface
         $this->lastUsedTimes = new WeakMap();
         $this->lastHeartbeatTimes = new WeakMap();
         $this->connections = new WeakMap();
+        $this->idleConnections = new WeakMap();
 
         if (Worker::isRunning()) {
             $weakPool = WeakReference::create($this);
@@ -199,6 +205,7 @@ class Pool implements PoolInterface
         if (!$connection) {
             throw new PoolException("Failed to get a connection from the pool within the wait timeout ($this->waitTimeout seconds). The connection pool is exhausted.");
         }
+        unset($this->idleConnections[$connection]);
         $this->lastUsedTimes[$connection] = time();
         return $connection;
     }
@@ -220,6 +227,11 @@ class Pool implements PoolInterface
         if ($connection === $this->nonCoroutineConnection) {
             return;
         }
+        if (isset($this->idleConnections[$connection])) {
+            throw new PoolException('The connection has already been returned to the connection pool.');
+        }
+        // Mark before pushing: push() may resume a waiting get() which clears the mark before push() returns.
+        $this->idleConnections[$connection] = true;
         try {
             if ($this->channel->push($connection)) {
                 return;
@@ -283,7 +295,7 @@ class Pool implements PoolInterface
             return;
         }
         // Mark this connection as no longer belonging to the connection pool.
-        unset($this->lastUsedTimes[$connection], $this->lastHeartbeatTimes[$connection], $this->connections[$connection]);
+        unset($this->lastUsedTimes[$connection], $this->lastHeartbeatTimes[$connection], $this->idleConnections[$connection], $this->connections[$connection]);
         if ($this->nonCoroutineConnection === $connection) {
             $this->nonCoroutineConnection = null;
         }

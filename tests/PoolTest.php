@@ -116,6 +116,77 @@ class PoolTest extends TestCase
         $pool->put($connection);
     }
 
+    public function testPutSameConnectionTwice()
+    {
+        $pool = new Pool(2);
+        $created = 0;
+        $closed = 0;
+        $pool->setConnectionCreator(function () use (&$created) {
+            $created++;
+            return new stdClass();
+        });
+        $pool->setConnectionCloser(function () use (&$closed) {
+            $closed++;
+        });
+
+        $connection = $pool->get();
+        $pool->put($connection);
+
+        // 非协程下归还是空操作，重复归还不能抛异常，也不能新建连接。
+        if (!Coroutine::isCoroutine()) {
+            $pool->put($connection);
+            $this->assertSame($connection, $pool->get());
+            $this->assertEquals(1, $created);
+            $this->assertEquals(0, $closed);
+            $this->assertEquals(1, $pool->getConnectionCount());
+            return;
+        }
+
+        try {
+            $pool->put($connection);
+            $this->fail('Putting the same connection twice should throw.');
+        } catch (PoolException $exception) {
+            $this->assertSame('The connection has already been returned to the connection pool.', $exception->getMessage());
+        }
+
+        $channel = $this->getPrivateProperty($pool, 'channel');
+        $this->assertEquals(1, $channel->length());
+        $this->assertEquals(1, $created);
+        $this->assertEquals(0, $closed);
+        $this->assertEquals(1, $pool->getConnectionCount());
+
+        $first = $pool->get();
+        $second = $pool->get();
+        $this->assertSame($connection, $first);
+        $this->assertNotSame($first, $second);
+        $this->assertEquals(2, $pool->getConnectionCount());
+
+        $pool->put($first);
+        $pool->put($second);
+        $this->assertEquals(2, $channel->length());
+
+        // 池子已满时，重复归还必须立刻失败，不能阻塞在通道写入上。
+        $repeatedReturnFinished = false;
+        $repeatedReturnException = null;
+        Coroutine::create(function () use ($pool, $first, &$repeatedReturnFinished, &$repeatedReturnException) {
+            try {
+                $pool->put($first);
+            } catch (PoolException $exception) {
+                $repeatedReturnException = $exception;
+            }
+            $repeatedReturnFinished = true;
+        });
+        Timer::sleep(0.05);
+
+        $this->assertTrue($repeatedReturnFinished);
+        $this->assertInstanceOf(PoolException::class, $repeatedReturnException);
+        $this->assertSame('The connection has already been returned to the connection pool.', $repeatedReturnException->getMessage());
+        $this->assertEquals(2, $channel->length());
+        $this->assertEquals(2, $created);
+        $this->assertEquals(0, $closed);
+        $this->assertEquals(2, $pool->getConnectionCount());
+    }
+
     public function testCreateConnection()
     {
         $pool = new Pool(5);

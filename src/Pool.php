@@ -197,14 +197,16 @@ class Pool implements PoolInterface
             }
             return $this->nonCoroutineConnection;
         }
-        $num = $this->channel->length();
-        if ($num === 0 && $this->getConnectionCount() < $this->maxConnections) {
-            return $this->createConnection();
-        }
-        $connection = $this->channel->pop($this->waitTimeout);
-        if (!$connection) {
-            throw new PoolException("Failed to get a connection from the pool within the wait timeout ($this->waitTimeout seconds). The connection pool is exhausted.");
-        }
+        // closeConnection() cannot remove an idle connection from the channel, so discard such connections here.
+        do {
+            if ($this->channel->length() === 0 && $this->getConnectionCount() < $this->maxConnections) {
+                return $this->createConnection();
+            }
+            $connection = $this->channel->pop($this->waitTimeout);
+            if (!$connection) {
+                throw new PoolException("Failed to get a connection from the pool within the wait timeout ($this->waitTimeout seconds). The connection pool is exhausted.");
+            }
+        } while (!isset($this->connections[$connection]));
         unset($this->idleConnections[$connection]);
         $this->lastUsedTimes[$connection] = time();
         return $connection;
@@ -322,6 +324,10 @@ class Pool implements PoolInterface
             $connection = $this->channel->pop(0);
             if (!$connection) {
                 return;
+            }
+            // Closed by closeConnection() while idle.
+            if (!isset($this->connections[$connection])) {
+                continue;
             }
             $lastUsedTime = $this->lastUsedTimes[$connection];
             if ($time - $lastUsedTime > $this->idleTimeout && $this->channel->length() >= $this->minConnections) {

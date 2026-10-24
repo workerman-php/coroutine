@@ -187,6 +187,219 @@ class PoolTest extends TestCase
         $this->assertEquals(2, $pool->getConnectionCount());
     }
 
+    public function testGetDiscardsConnectionClosedAfterReturn()
+    {
+        $pool = new Pool(3, ['wait_timeout' => 2]);
+        $closed = [];
+        $pool->setConnectionCreator(function () {
+            return new stdClass();
+        });
+        $pool->setConnectionCloser(function (object $connection) use (&$closed) {
+            $closed[spl_object_id($connection)] = $connection;
+        });
+
+        $connection = $pool->get();
+        $pool->put($connection);
+        $pool->closeConnection($connection);
+
+        $this->assertCount(1, $closed);
+        $this->assertSame($connection, $closed[spl_object_id($connection)]);
+        $this->assertEquals(0, $pool->getConnectionCount());
+
+        // 非协程连接不会进入通道，关闭后下次 get() 直接新建。
+        if (!Coroutine::isCoroutine()) {
+            $replacement = $pool->get();
+            $this->assertNotSame($connection, $replacement);
+            $this->assertEquals(1, $pool->getConnectionCount());
+            return;
+        }
+
+        $kept = $pool->get();
+        $discarded = [$pool->get(), $pool->get()];
+        $pool->put($kept);
+        foreach ($discarded as $item) {
+            $pool->put($item);
+            $pool->closeConnection($item);
+        }
+
+        $started = microtime(true);
+        $borrowed = $pool->get();
+        $elapsed = microtime(true) - $started;
+
+        $this->assertSame($kept, $borrowed);
+        $this->assertArrayNotHasKey(spl_object_id($borrowed), $closed);
+        $this->assertLessThan(0.5, $elapsed);
+        $this->assertEquals(1, $pool->getConnectionCount());
+        $this->assertCount(3, $closed);
+    }
+
+    public function testCheckConnectionsSkipsConnectionClosedAfterReturn()
+    {
+        if (!Coroutine::isCoroutine()) {
+            $this->assertTrue(true);
+            return;
+        }
+
+        $pool = new Pool(3, ['idle_timeout' => 3600, 'min_connections' => 1]);
+        $closed = 0;
+        $pool->setConnectionCreator(function () {
+            return new stdClass();
+        });
+        $pool->setConnectionCloser(function () use (&$closed) {
+            $closed++;
+        });
+
+        $closedConnection = $pool->get();
+        $kept = $pool->get();
+        $pool->put($closedConnection);
+        $pool->put($kept);
+        $pool->closeConnection($closedConnection);
+
+        $this->assertEquals(1, $closed);
+        $this->assertEquals(1, $pool->getConnectionCount());
+
+        $reflectedMethod = new ReflectionMethod($pool, 'checkConnections');
+        $reflectedMethod->invoke($pool);
+
+        $channel = $this->getPrivateProperty($pool, 'channel');
+        $this->assertEquals(1, $channel->length());
+        $this->assertEquals(1, $closed);
+        $this->assertSame($kept, $pool->get());
+
+        // 队列里只剩已关闭的连接时，检查过程也不能抛错。
+        $pool->put($kept);
+        $pool->closeConnection($kept);
+        $reflectedMethod->invoke($pool);
+
+        $this->assertEquals(0, $channel->length());
+        $this->assertEquals(0, $pool->getConnectionCount());
+        $this->assertEquals(2, $closed);
+    }
+
+    public function testConnectionClosedDuringHeartbeatIsNotReused()
+    {
+        if (!Coroutine::isCoroutine()) {
+            $this->assertTrue(true);
+            return;
+        }
+
+        $pool = new Pool(1, [
+            'heartbeat_interval' => 0,
+            'idle_timeout' => 3600,
+            'min_connections' => 0,
+        ]);
+        $closed = [];
+        $pool->setConnectionCreator(function () {
+            return new stdClass();
+        });
+        $pool->setConnectionCloser(function (object $connection) use (&$closed) {
+            $closed[spl_object_id($connection)] = true;
+        });
+        $pool->setHeartbeatChecker(function (object $connection) use ($pool) {
+            $pool->closeConnection($connection);
+        });
+
+        $connection = $pool->get();
+        $pool->put($connection);
+
+        $reflectedMethod = new ReflectionMethod($pool, 'checkConnections');
+        $reflectedMethod->invoke($pool);
+        $reflectedMethod->invoke($pool);
+
+        $replacement = $pool->get();
+        $this->assertNotSame($connection, $replacement);
+        $this->assertArrayHasKey(spl_object_id($connection), $closed);
+        $this->assertArrayNotHasKey(spl_object_id($replacement), $closed);
+        $this->assertEquals(1, $pool->getConnectionCount());
+        $this->assertCount(1, $closed);
+    }
+
+    public function testConcurrentBorrowReturnAndClose()
+    {
+        if (in_array(Worker::$eventLoopClass, [Select::class, Event::class], true)) {
+            $this->assertTrue(true);
+            return;
+        }
+
+        $maxConnections = 8;
+        $workers = 60;
+        $rounds = 40;
+        $pool = new Pool($maxConnections, [
+            'wait_timeout' => 5,
+            'idle_timeout' => 3600,
+            'heartbeat_interval' => 0,
+            'min_connections' => 1,
+        ]);
+        $errors = [];
+        $done = 0;
+        $operations = 0;
+        $closedCount = 0;
+        $inUse = [];
+        $pool->setConnectionCreator(function () {
+            return new stdClass();
+        });
+        $pool->setConnectionCloser(function (object $connection) use (&$closedCount) {
+            $connection->closed = true;
+            $closedCount++;
+        });
+        $pool->setHeartbeatChecker(function () {
+            Timer::sleep(0.001);
+        });
+
+        $reflectedMethod = new ReflectionMethod($pool, 'checkConnections');
+        Coroutine::create(function () use ($pool, $reflectedMethod, $workers, &$done) {
+            while ($done < $workers) {
+                $reflectedMethod->invoke($pool);
+                Timer::sleep(0.005);
+            }
+        });
+
+        for ($i = 0; $i < $workers; $i++) {
+            Coroutine::create(function () use ($pool, $rounds, $maxConnections, &$inUse, &$errors, &$done, &$operations) {
+                try {
+                    for ($n = 0; $n < $rounds; $n++) {
+                        $connection = $pool->get();
+                        $id = spl_object_id($connection);
+                        if (isset($inUse[$id])) {
+                            $errors[] = "connection $id borrowed twice";
+                        }
+                        if (!empty($connection->closed)) {
+                            $errors[] = "closed connection $id was borrowed again";
+                        }
+                        $inUse[$id] = true;
+                        Timer::sleep(0.001);
+                        unset($inUse[$id]);
+                        if ($n % 10 === 0) {
+                            $pool->closeConnection($connection);
+                        } else {
+                            $pool->put($connection);
+                        }
+                        $operations++;
+                        if ($pool->getConnectionCount() > $maxConnections) {
+                            $errors[] = 'connection count exceeded the pool limit';
+                        }
+                    }
+                } catch (\Throwable $throwable) {
+                    $errors[] = $throwable::class . ': ' . $throwable->getMessage();
+                } finally {
+                    $done++;
+                }
+            });
+        }
+
+        $deadline = microtime(true) + 60;
+        while ($done < $workers && microtime(true) < $deadline) {
+            Timer::sleep(0.02);
+        }
+
+        $this->assertSame($workers, $done, implode(PHP_EOL, array_slice($errors, 0, 8)));
+        $this->assertCount(0, $errors, implode(PHP_EOL, array_slice($errors, 0, 8)));
+        $this->assertSame($workers * $rounds, $operations);
+        $this->assertSame([], $inUse);
+        $this->assertLessThanOrEqual($maxConnections, $pool->getConnectionCount());
+        $this->assertGreaterThan(0, $closedCount);
+    }
+
     public function testCreateConnection()
     {
         $pool = new Pool(5);
